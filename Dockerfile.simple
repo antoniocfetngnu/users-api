@@ -1,0 +1,8 @@
+FROM alpine:latest
+RUN apk --no-cache add ca-certificates sqlite
+WORKDIR /app/
+RUN mkdir -p /app/data
+COPY main .
+COPY graphql/schema.graphql ./graphql/
+EXPOSE 8080
+CMD ["./main"]

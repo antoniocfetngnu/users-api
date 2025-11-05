@@ -1,0 +1,23 @@
+schema:
+  - graphql/schema.graphql
+
+exec:
+  filename: graphql/generated.go
+  package: graphql
+
+model:
+  filename: models/generated.go
+  package: models
+
+resolver:
+  filename: graphql/resolver.go
+  type: Resolver
+  package: graphql
+
+# Tell gqlgen to use our existing User model
+models:
+  User:
+    model: github.com/antoniocfetngnu/users-api/models.User
+
+autobind:
+  - github.com/antoniocfetngnu/users-api/models

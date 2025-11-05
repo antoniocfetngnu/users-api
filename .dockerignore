@@ -1,0 +1,13 @@
+.git
+.gitignore
+README.md
+docker-compose.yml
+Dockerfile
+.dockerignore
+*.db
+data/
+tmp/
+# Don't ignore your generated GraphQL files!
+# graphql/generated.go
+# graphql/resolver.go  
+# models/generated.go
