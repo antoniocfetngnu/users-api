@@ -3,21 +3,24 @@ type User {
   firstName: String!
   lastName: String!
   email: String!
+  username: String!
   createdAt: String!
+  updatedAt: String!
 }
 
 type Query {
-  health: String!
+  "Get all users"
   users: [User!]!
+  
+  "Get user by ID"
   user(id: ID!): User
-}
-
-type Mutation {
-  createUser(input: CreateUserInput!): User!
-}
-
-input CreateUserInput {
-  firstName: String!
-  lastName: String!
-  email: String!
+  
+  "Get user by username"
+  userByUsername(username: String!): User
+  
+  "Get user by email"
+  userByEmail(email: String!): User
+  
+  "Search users by name"
+  searchUsers(query: String!): [User!]!
 }

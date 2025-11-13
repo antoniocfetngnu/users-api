@@ -1,23 +1,36 @@
-FROM golang:1.25-alpine AS builder
-
-RUN apk add --no-cache git gcc musl-dev
+FROM golang:1.21-alpine AS builder
 
 WORKDIR /app
 
+# Install dependencies
+RUN apk add --no-cache git
+
+# Copy go mod files
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy ALL source code including generated GraphQL files ✅
+# Copy source code
 COPY . .
 
-# Just build, no generation needed ✅
-RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o main .
+# Generate GraphQL code
+RUN go run github.com/99designs/gqlgen generate --config graphql/gqlgen.yml
 
+# Generate Swagger docs
+RUN go install github.com/swaggo/swag/cmd/swag@latest
+RUN swag init
+
+# Build
+RUN CGO_ENABLED=0 GOOS=linux go build -o users-service .
+
+# Final stage
 FROM alpine:latest
-RUN apk --no-cache add ca-certificates sqlite
+
 WORKDIR /root/
-COPY --from=builder /app/main .
-COPY --from=builder /app/graphql/schema.graphql ./graphql/
-RUN mkdir -p /root/data
-EXPOSE 8080
-CMD ["./main"]
+
+# Copy binary
+COPY --from=builder /app/users-service .
+
+# Expose port
+EXPOSE 3001
+
+CMD ["./users-service"]

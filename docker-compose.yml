@@ -1,0 +1,26 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: usersdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  users-service:
+    build: .
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: "host=postgres user=myuser password=mypassword dbname=usersdb port=5432 sslmode=disable"
+      JWT_SECRET: "your-super-secret-jwt-key-change-in-production"
+      PORT: "3001"
+      ENVIRONMENT: "development"
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:

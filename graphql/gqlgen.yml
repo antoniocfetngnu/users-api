@@ -6,18 +6,24 @@ exec:
   package: graphql
 
 model:
-  filename: models/generated.go
-  package: models
+  filename: graphql/models_gen.go
+  package: graphql
 
 resolver:
   filename: graphql/resolver.go
   type: Resolver
   package: graphql
 
-# Tell gqlgen to use our existing User model
 models:
   User:
     model: github.com/antoniocfetngnu/users-api/models.User
+    fields:
+      id:
+        resolver: true
+      createdAt:
+        resolver: true
+      updatedAt:
+        resolver: true
 
 autobind:
   - github.com/antoniocfetngnu/users-api/models

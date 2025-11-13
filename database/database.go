@@ -1,48 +1,42 @@
 package database
 
 import (
-	"database/sql"
 	"log"
-	
-	_ "github.com/mattn/go-sqlite3"
+
+	"github.com/antoniocfetngnu/users-api/config"
+	"github.com/antoniocfetngnu/users-api/models"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
-var DB *sql.DB
+var DB *gorm.DB
 
-func InitDB() error {
+func Connect(cfg *config.Config) error {
 	var err error
-	DB, err = sql.Open("sqlite3", "./users.db")
+
+	// Configure GORM logger
+	gormConfig := &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Info),
+	}
+
+	// Connect to PostgreSQL
+	DB, err = gorm.Open(postgres.Open(cfg.DatabaseURL), gormConfig)
 	if err != nil {
 		return err
 	}
 
-	// Create users table
-	createTableSQL := `
-	CREATE TABLE IF NOT EXISTS users (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		first_name TEXT NOT NULL,
-		last_name TEXT NOT NULL,
-		email TEXT UNIQUE NOT NULL,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-	);`
+	log.Println("✅ Database connected successfully")
 
-	_, err = DB.Exec(createTableSQL)
-	if err != nil {
+	// Auto-migrate models (creates tables if they don't exist)
+	if err := DB.AutoMigrate(&models.User{}); err != nil {
 		return err
 	}
 
-	// Insert sample data
-	insertSQL := `
-	INSERT OR IGNORE INTO users (first_name, last_name, email) 
-	VALUES 
-		('John', 'Doe', 'john@example.com'),
-		('Jane', 'Smith', 'jane@example.com')`
-
-	_, err = DB.Exec(insertSQL)
-	if err != nil {
-		log.Printf("Warning: Could not insert sample data: %v", err)
-	}
-
-	log.Println("Database initialized successfully")
+	log.Println("✅ Database migrations completed")
 	return nil
+}
+
+func GetDB() *gorm.DB {
+	return DB
 }

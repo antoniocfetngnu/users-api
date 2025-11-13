@@ -2,83 +2,91 @@ package graphql
 
 import (
 	"context"
+	"strconv"
+	"strings"
+
 	"github.com/antoniocfetngnu/users-api/database"
 	"github.com/antoniocfetngnu/users-api/models"
 )
 
 type Resolver struct{}
 
-// CreateUser is the resolver for the createUser field.
-func (r *mutationResolver) CreateUser(ctx context.Context, input models.CreateUserInput) (*models.User, error) {
-	result, err := database.DB.Exec("INSERT INTO users (first_name, last_name, email) VALUES (?, ?, ?)", 
-		input.FirstName, input.LastName, input.Email)
+func (r *Resolver) Query() QueryResolver {
+	return &queryResolver{r}
+}
+
+func (r *Resolver) User() UserResolver {
+	return &userResolver{r}
+}
+
+type queryResolver struct{ *Resolver }
+type userResolver struct{ *Resolver }
+
+// Users resolver
+func (r *queryResolver) Users(ctx context.Context) ([]*models.User, error) {
+	var users []*models.User
+	if err := database.DB.Find(&users).Error; err != nil {
+		return nil, err
+	}
+	return users, nil
+}
+
+// User by ID resolver
+func (r *queryResolver) User(ctx context.Context, id string) (*models.User, error) {
+	userID, err := strconv.ParseUint(id, 10, 32)
 	if err != nil {
 		return nil, err
 	}
 
-	id, _ := result.LastInsertId()
-	
 	var user models.User
-	err = database.DB.QueryRow("SELECT id, first_name, last_name, email, created_at FROM users WHERE id = ?", id).
-		Scan(&user.ID, &user.FirstName, &user.LastName, &user.Email, &user.CreatedAt)
-	if err != nil {
+	if err := database.DB.First(&user, userID).Error; err != nil {
 		return nil, err
 	}
-
 	return &user, nil
 }
 
-// Health is the resolver for the health field.
-func (r *queryResolver) Health(ctx context.Context) (string, error) {
-	return "GraphQL API is healthy!", nil
-}
-
-// Users is the resolver for the users field.
-func (r *queryResolver) Users(ctx context.Context) ([]*models.User, error) {
-	rows, err := database.DB.Query("SELECT id, first_name, last_name, email, created_at FROM users")
-	if err != nil {
+// User by username resolver
+func (r *queryResolver) UserByUsername(ctx context.Context, username string) (*models.User, error) {
+	var user models.User
+	if err := database.DB.Where("username = ?", username).First(&user).Error; err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	return &user, nil
+}
 
+// User by email resolver
+func (r *queryResolver) UserByEmail(ctx context.Context, email string) (*models.User, error) {
+	var user models.User
+	if err := database.DB.Where("email = ?", email).First(&user).Error; err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+// Search users resolver
+func (r *queryResolver) SearchUsers(ctx context.Context, query string) ([]*models.User, error) {
 	var users []*models.User
-	for rows.Next() {
-		var user models.User
-		err := rows.Scan(&user.ID, &user.FirstName, &user.LastName, &user.Email, &user.CreatedAt)
-		if err != nil {
-			return nil, err
-		}
-		users = append(users, &user)
+	searchQuery := "%" + strings.ToLower(query) + "%"
+
+	if err := database.DB.Where(
+		"LOWER(first_name) LIKE ? OR LOWER(last_name) LIKE ? OR LOWER(username) LIKE ?",
+		searchQuery, searchQuery, searchQuery,
+	).Find(&users).Error; err != nil {
+		return nil, err
 	}
 
 	return users, nil
 }
 
-// User is the resolver for the user field.
-func (r *queryResolver) User(ctx context.Context, id string) (*models.User, error) {
-	var user models.User
-	err := database.DB.QueryRow("SELECT id, first_name, last_name, email, created_at FROM users WHERE id = ?", id).
-		Scan(&user.ID, &user.FirstName, &user.LastName, &user.Email, &user.CreatedAt)
-	if err != nil {
-		return nil, err
-	}
-	return &user, nil
+// Field resolvers for User type
+func (r *userResolver) ID(ctx context.Context, obj *models.User) (string, error) {
+	return strconv.FormatUint(uint64(obj.ID), 10), nil
 }
 
-// CreatedAt is the resolver for the createdAt field.
 func (r *userResolver) CreatedAt(ctx context.Context, obj *models.User) (string, error) {
-	return obj.CreatedAt.Format("2006-01-02 15:04:05"), nil
+	return obj.CreatedAt.Format("2006-01-02T15:04:05Z07:00"), nil
 }
 
-// Mutation returns MutationResolver implementation.
-func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
-
-// Query returns QueryResolver implementation.
-func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
-
-// User returns UserResolver implementation.
-func (r *Resolver) User() UserResolver { return &userResolver{r} }
-
-type mutationResolver struct{ *Resolver }
-type queryResolver struct{ *Resolver }
-type userResolver struct{ *Resolver }
+func (r *userResolver) UpdatedAt(ctx context.Context, obj *models.User) (string, error) {
+	return obj.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"), nil
+}
