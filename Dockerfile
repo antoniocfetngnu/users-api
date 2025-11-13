@@ -1,39 +1,6 @@
-FROM golang:1.25-alpine AS builder
-
-WORKDIR /app
-
-# Install dependencies
-RUN apk add --no-cache git
-
-# Copy go mod files first (for better caching)
-COPY go.mod go.sum ./
-RUN go mod download && go mod tidy
-
-# Install tools BEFORE copying source code
-RUN go install github.com/swaggo/swag/cmd/swag@latest
-RUN go install github.com/99designs/gqlgen@latest
-
-# Now copy source code
-COPY . .
-
-# Generate code (using installed binaries)
-RUN gqlgen generate --config graphql/gqlgen.yml
-RUN swag init
-
-# Build
-RUN CGO_ENABLED=0 GOOS=linux go build -o users-service .
-
-# Final stage
 FROM alpine:latest
-
-RUN apk add --no-cache ca-certificates
-
-WORKDIR /root/
-
-# Copy binary
-COPY --from=builder /app/users-service .
-
-# Expose port
+RUN apk --no-cache add ca-certificates
+COPY users-api /app/
+WORKDIR /app
 EXPOSE 3001
-
-CMD ["./users-service"]
+CMD ["./users-api"]
