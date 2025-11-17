@@ -82,7 +82,7 @@ definitions:
       username:
         type: string
     type: object
-host: localhost:3001
+host: localhost:8000
 info:
   contact: {}
   description: Users microservice with REST API and GraphQL
@@ -137,6 +137,33 @@ paths:
               type: string
             type: object
       summary: Logout user
+      tags:
+      - auth
+  /api/auth/me:
+    get:
+      description: Get current authenticated user's information
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.UserResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - CookieAuth: []
+      summary: Get current user
       tags:
       - auth
   /api/auth/register:

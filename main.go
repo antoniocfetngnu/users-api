@@ -59,12 +59,19 @@ func main() {
 		})
 	})
 
-	// Public routes (no authentication)
+	// Public auth routes (no authentication required)
 	r.POST("/api/auth/register", handlers.Register)
 	r.POST("/api/auth/login", handlers.Login)
 	r.POST("/api/auth/logout", handlers.Logout)
 
-	// Protected REST routes
+	// Protected auth routes (require authentication)
+	authProtected := r.Group("/api/auth")
+	authProtected.Use(middleware.AuthMiddleware())
+	{
+		authProtected.GET("/me", handlers.Me)
+	}
+
+	// Protected user routes
 	authorized := r.Group("/api/users")
 	authorized.Use(middleware.AuthMiddleware())
 	{

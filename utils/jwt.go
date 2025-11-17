@@ -1,8 +1,10 @@
 package utils
 
 import (
-	"errors"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/antoniocfetngnu/users-api/config"
@@ -10,7 +12,7 @@ import (
 )
 
 type JWTClaims struct {
-	UserID   uint   `json:"sub"` // IMPORTANT: This becomes X-Consumer-Custom-ID
+	UserID   uint   `json:"sub"`
 	Username string `json:"username"`
 	Email    string `json:"email"`
 	jwt.RegisteredClaims
@@ -22,7 +24,7 @@ func InitJWT(c *config.Config) {
 	cfg = c
 }
 
-// GenerateJWT generates a new JWT token
+// GenerateJWT generates a new JWT token (for login)
 func GenerateJWT(userID uint, username, email string) (string, error) {
 	claims := JWTClaims{
 		UserID:   userID,
@@ -44,22 +46,41 @@ func GenerateJWT(userID uint, username, email string) (string, error) {
 	return token.SignedString([]byte(cfg.JWTSecret))
 }
 
-// ValidateJWT validates a JWT token and returns the claims
-func ValidateJWT(tokenString string) (*JWTClaims, error) {
-	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, errors.New("unexpected signing method")
-		}
-		return []byte(cfg.JWTSecret), nil
-	})
+// DecodeJWTPayload extracts user info from JWT WITHOUT verifying signature
+// (Kong already validated it, we just need to read the payload)
+func DecodeJWTPayload(tokenString string) (userID uint, username, email string, err error) {
+	parts := strings.Split(tokenString, ".")
+	if len(parts) != 3 {
+		return 0, "", "", fmt.Errorf("invalid token format")
+	}
 
+	// Decode payload (second part)
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
 	if err != nil {
-		return nil, err
+		return 0, "", "", fmt.Errorf("failed to decode payload: %w", err)
 	}
 
-	if claims, ok := token.Claims.(*JWTClaims); ok && token.Valid {
-		return claims, nil
+	// Parse JSON
+	var claims struct {
+		Sub      json.Number `json:"sub"`
+		Username string      `json:"username"`
+		Email    string      `json:"email"`
 	}
 
-	return nil, errors.New("invalid token")
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return 0, "", "", fmt.Errorf("failed to parse payload: %w", err)
+	}
+
+	// Extract user ID from 'sub' claim
+	subStr := claims.Sub.String()
+	if subStr == "" {
+		return 0, "", "", fmt.Errorf("missing sub claim")
+	}
+
+	var uid uint64
+	if _, err := fmt.Sscanf(subStr, "%d", &uid); err != nil {
+		return 0, "", "", fmt.Errorf("invalid sub claim: %w", err)
+	}
+
+	return uint(uid), claims.Username, claims.Email, nil
 }

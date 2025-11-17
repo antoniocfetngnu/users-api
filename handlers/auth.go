@@ -105,14 +105,14 @@ func Login(c *gin.Context) {
 	c.SetCookie(
 		"auth_token", // name
 		token,        // value
-		24*60*60,     // maxAge (24 hours in seconds)
+		86400,        // maxAge (24 hours in seconds)
 		"/",          // path
-		"",           // domain (empty for current domain)
+		"",           // domain
 		false,        // secure (true in production with HTTPS)
 		true,         // httpOnly
 	)
 
-	// Also set SameSite attribute
+	// Set SameSite attribute
 	c.SetSameSite(http.SameSiteLaxMode)
 
 	c.JSON(http.StatusOK, gin.H{
@@ -140,4 +140,32 @@ func Logout(c *gin.Context) {
 	)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Logout successful"})
+}
+
+// Me godoc
+// @Summary Get current user
+// @Description Get current authenticated user's information
+// @Tags auth
+// @Produce json
+// @Security CookieAuth
+// @Success 200 {object} models.UserResponse
+// @Failure 401 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /api/auth/me [get]
+func Me(c *gin.Context) {
+	// Get user ID from context (set by AuthMiddleware)
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	// Fetch user from database
+	var user models.User
+	if err := database.DB.First(&user, userID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, user.ToResponse())
 }
