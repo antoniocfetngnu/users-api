@@ -29,7 +29,7 @@ func Connect(cfg *config.Config) error {
 	log.Println("✅ Database connected successfully")
 
 	// Auto-migrate models (creates tables if they don't exist)
-	if err := DB.AutoMigrate(&models.User{}); err != nil {
+	if err := DB.AutoMigrate(&models.User{}, &models.Follower{}); err != nil {
 		return err
 	}
 

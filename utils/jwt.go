@@ -2,6 +2,7 @@ package utils
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/antoniocfetngnu/users-api/config"
@@ -9,7 +10,7 @@ import (
 )
 
 type JWTClaims struct {
-	UserID   uint   `json:"sub"`
+	UserID   uint   `json:"sub"` // IMPORTANT: This becomes X-Consumer-Custom-ID
 	Username string `json:"username"`
 	Email    string `json:"email"`
 	jwt.RegisteredClaims
@@ -28,6 +29,7 @@ func GenerateJWT(userID uint, username, email string) (string, error) {
 		Username: username,
 		Email:    email,
 		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   fmt.Sprintf("%d", userID), // CRITICAL: Kong uses this
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),

@@ -13,33 +13,29 @@ import (
 
 	"github.com/antoniocfetngnu/users-api/config"
 	"github.com/antoniocfetngnu/users-api/database"
-	_ "github.com/antoniocfetngnu/users-api/docs" // Swagger docs
+	_ "github.com/antoniocfetngnu/users-api/docs"
 	"github.com/antoniocfetngnu/users-api/graphql"
 	"github.com/antoniocfetngnu/users-api/handlers"
+	"github.com/antoniocfetngnu/users-api/middleware"
 	"github.com/antoniocfetngnu/users-api/utils"
 )
 
 // @title Users Service API
 // @version 1.0
 // @description Users microservice with REST API and GraphQL
-// @host localhost:3001
+// @host localhost:8000
 // @BasePath /
 // @securityDefinitions.apikey CookieAuth
 // @in cookie
 // @name auth_token
 func main() {
-	// Load configuration
 	cfg := config.LoadConfig()
-
-	// Initialize JWT utils
 	utils.InitJWT(cfg)
 
-	// Connect to database
 	if err := database.Connect(cfg); err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
 
-	// Setup Gin
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -55,30 +51,7 @@ func main() {
 		AllowCredentials: true,
 	}))
 
-	// Middleware to extract user from cookie (for protected routes)
-	authMiddleware := func(c *gin.Context) {
-		cookie, err := c.Cookie("auth_token")
-		if err != nil || cookie == "" {
-			c.JSON(401, gin.H{"error": "Unauthorized"})
-			c.Abort()
-			return
-		}
-
-		claims, err := utils.ValidateJWT(cookie)
-		if err != nil {
-			c.JSON(401, gin.H{"error": "Invalid token"})
-			c.Abort()
-			return
-		}
-
-		// Store user info in context
-		c.Set("userID", claims.UserID)
-		c.Set("username", claims.Username)
-		c.Set("email", claims.Email)
-		c.Next()
-	}
-
-	// Health check
+	// Health check (public)
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"status":  "OK",
@@ -91,14 +64,24 @@ func main() {
 	r.POST("/api/auth/login", handlers.Login)
 	r.POST("/api/auth/logout", handlers.Logout)
 
-	// Protected REST routes (require authentication)
+	// Protected REST routes
 	authorized := r.Group("/api/users")
-	authorized.Use(authMiddleware)
+	authorized.Use(middleware.AuthMiddleware())
 	{
 		authorized.GET("", handlers.GetUsers)
 		authorized.GET("/:id", handlers.GetUser)
 		authorized.PUT("/:id", handlers.UpdateUser)
 		authorized.DELETE("/:id", handlers.DeleteUser)
+	}
+
+	// Follower routes (protected)
+	followers := r.Group("/api/followers")
+	followers.Use(middleware.AuthMiddleware())
+	{
+		followers.POST("/follow", handlers.FollowUser)
+		followers.DELETE("/unfollow/:id", handlers.UnfollowUser)
+		followers.GET("/my-followers", handlers.GetMyFollowers)
+		followers.GET("/my-following", handlers.GetMyFollowing)
 	}
 
 	// GraphQL setup
@@ -108,7 +91,7 @@ func main() {
 	)
 
 	// GraphQL endpoint (protected)
-	r.POST("/graphql", authMiddleware, func(c *gin.Context) {
+	r.POST("/graphql", middleware.AuthMiddleware(), func(c *gin.Context) {
 		gqlServer.ServeHTTP(c.Writer, c.Request)
 	})
 

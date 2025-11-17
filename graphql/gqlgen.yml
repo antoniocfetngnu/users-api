@@ -24,6 +24,17 @@ models:
         resolver: true
       updatedAt:
         resolver: true
+  Follower:
+    model: github.com/antoniocfetngnu/users-api/models.Follower
+    fields:
+      id:
+        resolver: true
+      followerId:
+        resolver: true
+      followedId:
+        resolver: true
+      followedSince:
+        resolver: true        
 
 autobind:
   - github.com/antoniocfetngnu/users-api/models

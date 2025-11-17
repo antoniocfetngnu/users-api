@@ -1,5 +1,27 @@
 basePath: /
 definitions:
+  models.FollowRequest:
+    properties:
+      followedId:
+        type: integer
+    required:
+    - followedId
+    type: object
+  models.FollowerResponse:
+    properties:
+      followed:
+        $ref: '#/definitions/models.UserResponse'
+      followedId:
+        type: integer
+      followedSince:
+        type: string
+      follower:
+        $ref: '#/definitions/models.UserResponse'
+      followerId:
+        type: integer
+      id:
+        type: integer
+    type: object
   models.LoginRequest:
     properties:
       password:
@@ -152,6 +174,135 @@ paths:
       summary: Register a new user
       tags:
       - auth
+  /api/followers/follow:
+    post:
+      consumes:
+      - application/json
+      description: Current user follows another user
+      parameters:
+      - description: User to follow
+        in: body
+        name: followRequest
+        required: true
+        schema:
+          $ref: '#/definitions/models.FollowRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.FollowerResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - CookieAuth: []
+      summary: Follow a user
+      tags:
+      - followers
+  /api/followers/my-followers:
+    get:
+      description: Get list of users following the current user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.FollowerResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - CookieAuth: []
+      summary: Get my followers
+      tags:
+      - followers
+  /api/followers/my-following:
+    get:
+      description: Get list of users the current user follows
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.FollowerResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - CookieAuth: []
+      summary: Get users I follow
+      tags:
+      - followers
+  /api/followers/unfollow/{id}:
+    delete:
+      description: Current user unfollows another user
+      parameters:
+      - description: User ID to unfollow
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - CookieAuth: []
+      summary: Unfollow a user
+      tags:
+      - followers
   /api/users:
     get:
       description: Retrieve a list of all users (requires authentication)
