@@ -36,4 +36,6 @@ COPY --from=builder /app/users-service .
 # Expose port
 EXPOSE 3001
 
+EXPOSE 50051
+
 CMD ["./users-service"]

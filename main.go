@@ -2,11 +2,13 @@ package main
 
 import (
 	"log"
+	"net"
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"google.golang.org/grpc"
 
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -15,8 +17,10 @@ import (
 	"github.com/antoniocfetngnu/users-api/database"
 	_ "github.com/antoniocfetngnu/users-api/docs"
 	"github.com/antoniocfetngnu/users-api/graphql"
+	grpcServer "github.com/antoniocfetngnu/users-api/grpc"
 	"github.com/antoniocfetngnu/users-api/handlers"
 	"github.com/antoniocfetngnu/users-api/middleware"
+	pb "github.com/antoniocfetngnu/users-api/proto"
 	"github.com/antoniocfetngnu/users-api/utils"
 )
 
@@ -35,6 +39,9 @@ func main() {
 	if err := database.Connect(cfg); err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
+
+	// Start gRPC server in a separate goroutine
+	go startGRPCServer()
 
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -59,12 +66,12 @@ func main() {
 		})
 	})
 
-	// Public auth routes (no authentication required)
+	// Public auth routes
 	r.POST("/api/auth/register", handlers.Register)
 	r.POST("/api/auth/login", handlers.Login)
 	r.POST("/api/auth/logout", handlers.Logout)
 
-	// Protected auth routes (require authentication)
+	// Protected auth routes
 	authProtected := r.Group("/api/auth")
 	authProtected.Use(middleware.AuthMiddleware())
 	{
@@ -120,4 +127,20 @@ func main() {
 	}
 
 	r.Run(":" + cfg.Port)
+}
+
+func startGRPCServer() {
+	lis, err := net.Listen("tcp", ":50051")
+	if err != nil {
+		log.Fatalf("Failed to listen on port 50051: %v", err)
+	}
+
+	grpcSrv := grpc.NewServer()
+	pb.RegisterUsersServiceServer(grpcSrv, &grpcServer.UsersServer{})
+
+	log.Println("🔌 gRPC server running on port 50051")
+
+	if err := grpcSrv.Serve(lis); err != nil {
+		log.Fatalf("Failed to serve gRPC: %v", err)
+	}
 }
