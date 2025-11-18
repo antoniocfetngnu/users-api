@@ -52,18 +52,21 @@ func main() {
 	// CORS configuration
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:5173", "http://localhost:8000"},
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 	}))
 
 	// Health check (public)
-	r.GET("/health", func(c *gin.Context) {
+	r.GET("/api/users/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"status":  "OK",
 			"service": "users-service",
 		})
+	})
+	r.HEAD("/api/users/health", func(c *gin.Context) {
+		c.Status(200)
 	})
 
 	// Public auth routes
